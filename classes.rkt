@@ -125,51 +125,97 @@ apply-env :: Env x Var -> Value
 
 (define init-env empty-env)
 
+
+; ---------------------------- ENV CLASSES -------------------
+
+(define class-env '()) ;; // (define class-env '(empty-class-env)) 
+
+(define init-env-classes class-env)
+
+(define (extend-class-env  classname env)
+  list ('extend-class-env classname env) ; Colocar o nome da classe na lista de env
+ )
+
+(define (get-class-env name)
+     (if (equal? name (cadr (class-env)) (caddr (class-env))  ) ; Procurar na lista de classe o env dado o nome
+         get-class-env (name cadddr(class-env) )
+         )
+    )
+
+(struct class (classname super fields methods) ) ; Estrutura para representar os objetos de uma classe
+
+(define init-all ;; Para cada classe colocar os atributos
+( lambda(classes)
+   (set! class-env
+(list
+(list 'object (class #f '() '()))))
+(for-each init-classes classes))) ; Pegar as declarações de classe e criar objeto vazio
+
+
+(define init-classes
+  (lambda (classes)
+    
+    display(3)
+    )
+  ) ; pegar cada atributo e associar a classe
+
+
+(define (value-of-classes-program class-decls bodyExpr )
+  (empty-store)
+  (init-all class-decls)
+  (value-of bodyExpr (init-env-classes))
+)
+
+
+a-program (class-decls body)
+
+
+
+#|
+(define lookup-class
+(lambda (name)
+(((assq name class-env)))
+))
+
+(define add-to-class-env!
+(lambda (class-name class)
+(set! class-env
+(cons
+(list class-name class)
+class-env))))
+
+
+(define initialize-class-env!
+(lambda (c-decls)
+(set! the-class-env
+(list
+(list ’object (a-class #f ’() ’()))))
+(for-each initialize-class-decl! c-decls)))
+
+
+(define initialize-class-decl!
+(lambda (c-decl)
+(cases class-decl c-decl
+(a-class-decl (c-name s-name f-names m-decls)
+(let ((f-names
+(append-field-names
+(class->field-names (lookup-class s-name))
+f-names)))
+(add-to-class-env!
+c-name
+(a-class s-name f-names
+(merge-method-envs
+(class->method-env (lookup-class s-name))
+(method-decls->method-env
+m-decls s-name f-names)))))))))
+
+|#
+
 #|
 ; Definição dos Valores
 
 (apply-proc (procedure var body Δ) val) = (value-of body [var=l]Δ [l=val]σ)
 
-
-
-; Passagem de Parâmetros
-   (call fun param)
-
-2) 
-
-                Δ,σ ⊢ e₁ = (f, σ₁)     e₂ ∉ (var n) 
-  _______________________________________________________________
-          Δ,σ ⊢ (call e₁ e₂) = (apply-proc f thunk(e₂, Δ))
-
-
-            Δ,σ ⊢ e₁ = (f, σ₁)      e₂ ∈ (var n)
-  _______________________________________________________________
-          Δ,σ ⊢ (call e₁ e₂) = (apply-proc-ref f Δ⟦n⟧)
-
-3) 
-2) call-by-reference
-
-     Δ,σ ⊢ e₁ = (f, σ₁)  e₂ ∉ (var n)    Δ,σ₁ ⊢ e₂ = (v, σ₂)
-  _______________________________________________________________
-          Δ,σ ⊢ (call e₁ e₂) = (apply-proc f v)
-
-
-            Δ,σ ⊢ e₁ = ((procedure param body Δ₁), σ₁)  e₂ ∈ (var n)   Δ,σ₁ ⊢ e₂ = (v, σ₂)     (apply-proc (procedure param body Δ₁) v) = (v₁, σ₂)
-  _____________________________________________________________________________________________________________________________________________________
-                                             Δ,σ ⊢ (call e₁ e₂)  = (v₁, [Δ⟦n⟧ = σ₂(Δ₁⟦param⟧)]σ₂
-
-
-
-f(x)
-
-x -> 5   .... 7
-...
-
-
-
-(f a)
-
-a -> 5 .....   7
 
 |#
 ; call-by-value
@@ -194,75 +240,6 @@ a -> 5 .....   7
 
 (define (apply-proc-ref proc val)
   (proc val #f))
-
-
-#|
-1) Passagem de parâmetro Natural
-   DenVal = ExpVal
-      LET, LETREC, PROC
-
-2) Passagem de parâmetro por valor (call-by-value)
-      EREF, IREF
-
-  DenVal = Ref(ExpVal)
-  Criar uma nova referência para o valor passado
-
-3) Passagem de parâmetro por referência (call-by-reference)
-      DenVal = Ref(ExpVal)
-
-4) Passagem de parâmetro por resultado (call-by-value-result)
-      DenVal = Ref(ExpVal)
-
-
-5) Passagem de parâmetro por nome (call-by-name e call-by-need) lazy evaluation ; avaliação preguiçosa
-      DenVal = Ref(ExpVal + Thunk)     
-            
-
-
-
-; Exemplo
-1)
-let p = proc (x) set x = 4
-in let a = 3
-   in begin (p a); a end
-
-a e x são locais distintos
-a -> |4| <- x
-
-2)
-let f = proc (x) set x = 44
-in let g = proc (y) (f y)
-   in let z = 55
-      in begin (g z); z end
-
-z -> |44| <- y
-      ^
-      x
-
-3)
-let swap = proc (x) proc(y)
-            let temp = x
-            in begin
-                set x = y;
-                set y = temp
-               end
-in let a = 33
-   in let b = 44
-      in begin
-          ((swap a) b);
-          -(a,b)
-         end
-
-a -> |44| <- x
-b -> |33| <- y
-temp -> |33|
-
-4)
-letrec loop(x) = loop(-(x,-1))
-in let f = proc (z) 7
-   in (f (loop 0))
-
-|#
 
 
 
@@ -294,29 +271,19 @@ in let f = proc (z) 7
 (define p4 '(letrec loop x (call (var loop) (dif (var x) (lit -1)))
                     (let f (proc x (lit 7))
                       (call (var f) (call (var loop) (lit 0))))))
+
+
 #|
-; Especificação do comportamento das expressões
-      
-               Δ,σ ⊢ e = (v,σ₁)
-1) ________________________________________
-       Δ,σ ⊢ (set n e) = (v, [Δ⟦n⟧ = v]σ₁) 
-
-2) ____________________________________
-        Δ,σ ⊢ (var x) = σ(Δ⟦x⟧)
-
-     Δ,σ ⊢ e₁ = (v₁, σ₁)   l ∉ dom(σ₁)  [n = l]Δ,[l = v₁]σ₁ ⊢ e₂ = (v₂,σ₂)
-3) _____________________________________________________________________________
-                         Δ,σ ⊢ (let n e₁ e₂) = (v₂,σ₂)
-
-
-|#
-
 (define (methodDecl exp Δ)
   (define Id (car exp))
   (let ([Id (value-of (caddr exp) Δ)])
                               (setref! (apply-env Δ (cadr exp)) Id)
                               Id)
   )
+|#
+
+
+
 (define (value-of exp Δ)
   (define type (car exp))
 
@@ -367,6 +334,8 @@ in let f = proc (z) 7
   (empty-store)
   (value-of (cadr prog) init-env))
 
+
+
 ; Exemplos de expressões IREF
 (define ex1 '(let g (let count (lit 0)
                       (proc dummy (begin (set count (dif (var count) (lit -1)))
@@ -400,7 +369,6 @@ in let a = 3
 (require racket/trace)
 
 (value-of p1 init-env)
-(value-of p5 init-env)
 (value-of p2 init-env)
 (value-of p3 init-env)
 (value-of p4 init-env)
