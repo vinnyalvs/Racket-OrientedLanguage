@@ -255,36 +255,24 @@ m-decls s-name f-names)))))))))
 (define class-env '()) 
 (define init-env-classes class-env)
 
-(define add-to-class-env
-(lambda (class-name env)
-(set! class-env
-(cons
-(list class-name env )
-class-env))))
 
-(define extend-class-env 
-  (lambda(classname env)
-   (classname env)
-    ) ; Colocar o nome da classe na lista de env
+(define extend-class-env
+  (lambda (name env)
+    (set! class-env (append (list (cons name env))
+           class-env) )
+    )
  )
 
-(define (apply-class-env env var)
-  (env var))
-
 (define (get-class-env name assoc-name-class)
-     (if (equal? name (car (car assoc-name-class))) (cadr (car assoc-name-class))   ; Procurar na lista de classe o env dado o nome
+     (if (equal? name (caar assoc-name-class)) (cdar assoc-name-class)   ; Procurar na lista de classe o env dado o nome
          (get-class-env name (cdr assoc-name-class))
  ))
  
+(define (apply-class-env env var)
+  (env var))
 
-(define lookup-class
-(lambda (name)
-(let ((maybe-pair (assq name class-env)))
-(if maybe-pair (cadr maybe-pair)
-(error "No class")))))
 
-; (add-to-class-env 'name init-env)
-; (lookup-class 'name)
+; (extend-class-env-2 'name init-env)
 ; (get-class-env 'name class-env)
 
 (struct class (classname super fields methods) ) ; Estrutura para representar os objetos de uma classe
