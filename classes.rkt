@@ -126,49 +126,6 @@ apply-env :: Env x Var -> Value
 (define init-env empty-env)
 
 
-; ---------------------------- ENV CLASSES -------------------
-
-(define class-env '()) ;; // (define class-env '(empty-class-env)) 
-
-(define init-env-classes class-env)
-
-(define (extend-class-env  classname env)
-  list ('extend-class-env classname env) ; Colocar o nome da classe na lista de env
- )
-
-(define (get-class-env name)
-     (if (equal? name (cadr (class-env)) (caddr (class-env))  ) ; Procurar na lista de classe o env dado o nome
-         get-class-env (name cadddr(class-env) )
-         )
-    )
-
-(struct class (classname super fields methods) ) ; Estrutura para representar os objetos de uma classe
-
-(define init-all ;; Para cada classe colocar os atributos
-( lambda(classes)
-   (set! class-env
-(list
-(list 'object (class #f '() '()))))
-(for-each init-classes classes))) ; Pegar as declarações de classe e criar objeto vazio
-
-
-(define init-classes
-  (lambda (classes)
-    
-    display(3)
-    )
-  ) ; pegar cada atributo e associar a classe
-
-
-(define (value-of-classes-program class-decls bodyExpr )
-  (empty-store)
-  (init-all class-decls)
-  (value-of bodyExpr (init-env-classes))
-)
-
-
-a-program (class-decls body)
-
 
 
 #|
@@ -245,42 +202,6 @@ m-decls s-name f-names)))))))))
 
 (struct thunk (env exp))
 
-(define p1 '(let p (proc x (set x (lit 4)))
-                (let a (lit 3)
-                  (begin (call (var p) (var a)) (var a)))))
-
-(define p5 '(let z (proc x (set x (lit 4)))
-                (let u (lit 3)
-                  (begin (call (var z) (var u)) (lit 31)
-
-                         ))))
-
-(define p2 '(let f (proc x (set x (lit 44)))
-              (let g (proc y (call (var f) (var y)))
-                (let z (lit 55)
-                  (begin (call (var g) (var z)) (var z))))))
-
-(define p3 '(let swap (proc x (proc y (let temp (var x)
-                                        (begin (set x (var y))
-                                               (set y (var temp))))))
-              (let a (lit 33)
-                (let b (lit 44)
-                  (begin (call (call (var swap) (var a)) (var b))
-                         (dif (var a) (var b)))))))
-
-(define p4 '(letrec loop x (call (var loop) (dif (var x) (lit -1)))
-                    (let f (proc x (lit 7))
-                      (call (var f) (call (var loop) (lit 0))))))
-
-
-#|
-(define (methodDecl exp Δ)
-  (define Id (car exp))
-  (let ([Id (value-of (caddr exp) Δ)])
-                              (setref! (apply-env Δ (cadr exp)) Id)
-                              Id)
-  )
-|#
 
 
 
@@ -320,13 +241,100 @@ m-decls s-name f-names)))))))))
         
         [(equal? type 'begin) (foldr (lambda (e acumulador) (value-of e Δ)) (value-of (cadr exp) Δ) (cddr exp))] ; -- OK
 
+       ; [(equal? type 'self) (()(apply-env env ’%self)) ]
+
       ;  [(equal? type 'send) (define v (cadr exp)) (foldr (lambda (e acumulador) (value-of e Δ)) (value-of (cadr exp) Δ) (cddr exp))] ;
 
         [else (error "operação não implementada")])
 
   )
 
+; ---------------------------- ENV CLASSES -------------------
+(require racket/trace)
+; (define class-env '()) ;; // (define class-env '(empty-class-env)) 
+(define class-env '()) 
+(define init-env-classes class-env)
 
+(define add-to-class-env
+(lambda (class-name env)
+(set! class-env
+(cons
+(list class-name env )
+class-env))))
+
+(define extend-class-env 
+  (lambda(classname env)
+   (classname env)
+    ) ; Colocar o nome da classe na lista de env
+ )
+
+(define (apply-class-env env var)
+  (env var))
+
+(define (get-class-env name assoc-name-class)
+     (if (equal? name (car (car assoc-name-class))) (cadr (car assoc-name-class))   ; Procurar na lista de classe o env dado o nome
+         (get-class-env name (cdr assoc-name-class))
+ ))
+ 
+
+(define lookup-class
+(lambda (name)
+(let ((maybe-pair (assq name class-env)))
+(if maybe-pair (cadr maybe-pair)
+(error "No class")))))
+
+; (add-to-class-env 'name init-env)
+; (lookup-class 'name)
+; (get-class-env 'name class-env)
+
+(struct class (classname super fields methods) ) ; Estrutura para representar os objetos de uma classe
+#|
+
+
+Sobre a avaliação de uma declaração de método, quando você encontrar um, você deverá criar algo semelhante a um procedimento e associar,
+posteriormente, a definição da classe.Uma possibilidade é tratar métodos como se fosse procedimento,
+porém adicionar sempre um parâmetro a mais referente ao objeto atual
+
+
+
+(define init-all ;; Para cada classe colocar os atributos
+( lambda(classes)
+   (set! class-env
+(list
+(list 'object (class 'nome #f '() '()))))
+(for-each init-classes classes))) ; Pegar as declarações de classe e criar objeto vazio
+|#
+
+(define init-all ;; Para cada classe colocar os atributos
+( lambda(classes)
+   (set! class-env 
+(list 'object (class 'nome #f '() '()))))) ; Pegar as declarações de classe e criar objeto vazio
+
+
+(define init-classes
+  (lambda (classes)
+    
+    display(3)
+    )
+  ) ; pegar cada atributo e associar a classe
+
+
+(define (value-of-classes-program class-decls bodyExpr )
+  (empty-store)
+  (init-all class-decls)
+  ;(value-of bodyExpr init-env-classes)
+)
+(define class-example
+'(class-name super-name
+field-names method-decls))
+
+(define new-object-exp '(class-name obj_name))
+
+(define a-program '(class-example body))
+
+(value-of-classes-program a-program init-env-classes)
+
+(trace value-of-classes-program)
 
 
 ; Especificação do comportamento de programas
@@ -336,25 +344,6 @@ m-decls s-name f-names)))))))))
 
 
 
-; Exemplos de expressões IREF
-(define ex1 '(let g (let count (lit 0)
-                      (proc dummy (begin (set count (dif (var count) (lit -1)))
-                                         (var count))))
-               (let a (call (var g) (lit 11))
-                 (let b (call (var g) (lit 11))
-                   (dif (var a) (var b)))))
-      )
-
-(value-of ex1 init-env)
-
-(define ex2 '(program
-              (letrec fun x (if (zero? (var x)) (lit 0)
-                                (dif (var x)
-                                     (dif (lit 0)
-                                          (call (var fun) (dif (var x) (lit 1))))))
-                      (call (var fun) (lit 3)))))
-
-;(value-of-program ex2)
 
 #|
 ; Exemplo
@@ -366,9 +355,9 @@ in let a = 3
                 (let a (lit 3)
                   (begin (call (var p) (var a)) (var a)))))
 |#
-(require racket/trace)
 
-(value-of p1 init-env)
-(value-of p2 init-env)
-(value-of p3 init-env)
-(value-of p4 init-env)
+
+;(value-of p1 init-env)
+;(value-of p2 init-env)
+;(value-of p3 init-env)
+;(value-of p4 init-env)
