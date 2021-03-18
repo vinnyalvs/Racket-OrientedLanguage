@@ -131,36 +131,6 @@ apply-env :: Env x Var -> Value
 
 
 #|
-
-
-
-(define initialize-class-env!
-(lambda (c-decls)
-(set! the-class-env
-(list
-(list ’object (a-class #f ’() ’()))))
-(for-each initialize-class-decl! c-decls)))
-
-
-(define initialize-class-decl!
-(lambda (c-decl)
-(cases class-decl c-decl
-(a-class-decl (c-name s-name f-names m-decls)
-(let ((f-names
-(append-field-names
-(class->field-names (lookup-class s-name))
-f-names)))
-(add-to-class-env!
-c-name
-(a-class s-name f-names
-(merge-method-envs
-(class->method-env (lookup-class s-name))
-(method-decls->method-env
-m-decls s-name f-names)))))))))
-
-|#
-
-#|
 ; Definição dos Valores
 
 (apply-proc (procedure var body Δ) val) = (value-of body [var=l]Δ [l=val]σ)
@@ -218,6 +188,8 @@ m-decls s-name f-names)))))))))
         [(equal? type 'call) (if (equal? (car (caddr exp)) 'var)
                                  (apply-proc-ref (value-of (cadr exp) Δ) (apply-env Δ (cadr (caddr exp))))
                                  (apply-proc (value-of (cadr exp) Δ) (thunk Δ (caddr exp))))] ; -- vai sair
+
+       
         
         [(equal? type 'letrec) (value-of (car (cddddr exp)) (extend-env-rec (cadr exp) (caddr exp) (cadddr exp) Δ))] ; -- Ok
         
@@ -226,12 +198,14 @@ m-decls s-name f-names)))))))))
                               (setref! (apply-env Δ (cadr exp)) v)
                               v)] ; -- Ok
         
-        [(equal? type 'begin) (foldl (lambda (e acumulador) (value-of e Δ)) (value-of (cadr exp) Δ) (cddr exp))] ; -- OK
+        [(equal? type 'begin) (foldr (lambda (e acumulador) (value-of e Δ)) (value-of (cadr exp) Δ) (cddr exp))] ; -- OK
 
 
         [(equal? type 'self ) (apply-env Δ '%self)]
         [(equal? type 'send) (error "operação ainda não implementada") ] ;
-
+        [(equal? type 'new) (error "operação ainda não implementada") ]
+        [(equal? type 'super) (error "operação ainda não implementada") ]
+        
         [else (error "operação não implementada")])
 
   )
@@ -241,10 +215,14 @@ m-decls s-name f-names)))))))))
 
 (struct class (classname super fields methods env) ) ; Estrutura para representar os objetos de uma classe
 
+
+
 ;(define class-env '()) ; ou // (define class-env '(empty-class-env))
 (define init-env-classes class-env)
 
 (define classes-struct-list '()) ; Lista que vai cada elemento associa um nome de classe a seus atributos (incluindo o env)
+
+(struct object (classname fields-refs))
 
 (define add-class ; add um struct class a lista classes-struct-list 
   (lambda (name obj_class)
@@ -259,26 +237,52 @@ m-decls s-name f-names)))))))))
  ))
 
 
+(define get-field-names
+ (lambda(class-name)
+  (class-fields (get-class class-name classes-struct-list))
+   )
+ )
+
+(define (zip a b)
+  (apply map list (list a b)))
+
+#|
+(define get-field-refs
+  (lambda(class-name)
+    (let ([fields-names (get-field-names class-name)])
+      (map 
+      newref (cons 'undefined field-name)
+     )
+    )
+))
+
+(define new-object
+  (lambda (class-name)
+    (object class-name (get-field-refs class-name )
+ ) ) )
+
+|#
+
+
 
 (define init-class
 (lambda (decl)
   ;(display (cadr decl))
   ;(display (caddr decl))
-  ;(display (cadddr decl))
-  ;(display  (cadddr (cdr decl)))
-  (add-class (cadr decl) ( class (cadr decl) (caddr decl) (cadddr decl) (cadddr (cdr decl)) init-env) ))
-
+  ;(display (cdr (cadddr decl)))
+  ;(display  (cdar (cadddr (cdr decl))))
+  (add-class (cadr decl) ( class (cadr decl) (caddr decl) (cdr (cadddr decl)) (cdar (cadddr (cdr decl))) init-env) ))
   )
 
 (define add-object-class
-(add-class 'object (class 'object 'object 'fields 'methods empty-env))) ;; chamar no programa
+(add-class 'object (class 'object 'object 'fields 'methods empty-env))) ;
  
  
-
 (define init-all-classes
   (lambda (classes-decls)
     (map init-class classes-decls))
  )
+
 
 
 
@@ -302,56 +306,22 @@ m-decls s-name f-names)))))))))
 ; (define struct-class-list '()) 
 
 
-
- 
 (define (apply-class-env env var)
   (env var))
 
 
-; (extend-class-env 'name init-env)
-; (get-class-env 'name class-env)
-
-#|
-(define all-classes)
-(lambda (classes)
-  for(classes)
-   init-class(classes[i])
- )
-|#
-
-
-;(define initialize-class-env!
-;  (lambda (c-decls)
-;    (set! class-env
-;          (list
-;           (list ’object (a-class #f ’() ’()))))
-;    (for-each initialize-class-decl! c-decls)))
-
-#|
-
-
-Sobre a avaliação de uma declaração de método, quando você encontrar um, você deverá criar algo semelhante a um procedimento e associar,
-posteriormente, a definição da classe.Uma possibilidade é tratar métodos como se fosse procedimento,
-porém adicionar sempre um parâmetro a mais referente ao objeto atual
-
-
-
-(define init-all ;; Para cada classe colocar os atributos
-( lambda(classes)
-   (set! class-env
-(list
-(list 'object (class 'nome #f '() '()))))
-(for-each init-classes classes))) ; Pegar as declarações de classe e criar objeto vazio
-|#
-
-
-
-
-(define (value-of-classes-program class-decls bodyExpr )
+(define (value-of-classes-program prog )
   (empty-store)
-  (init-all-classes class-decls)
-  ;(value-of bodyExpr init-env-classes)
+  (init-all-classes (cadr prog))
+  ;(value-of (cadr prog init-env))
 )
+
+; Especificação do comportamento de programas
+(define (value-of-program prog)
+  (empty-store)
+  (value-of (cadr prog) init-env))
+
+
 (define class-example
 '(class-name super-name
 field-names method-decls))
@@ -365,24 +335,10 @@ field-names method-decls))
 (trace value-of-classes-program)
 
 
-; Especificação do comportamento de programas
-(define (value-of-program prog)
-  (empty-store)
-  (value-of (cadr prog) init-env))
 
 
 
 
-#|
-; Exemplo
-let p = proc (x) set x = 4
-in let a = 3
-   in begin (p a); a end
-
-(define prog '(let p (proc x (set x (lit 4)))
-                (let a (lit 3)
-                  (begin (call (var p) (var a)) (var a)))))
-|#
 
 
 ;(value-of p1 init-env)
