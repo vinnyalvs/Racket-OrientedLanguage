@@ -220,7 +220,7 @@ apply-env :: Env x Var -> Value
 ;(define class-env '()) ; ou // (define class-env '(empty-class-env))
 (define init-env-classes class-env)
 
-(define classes-struct-list '()) ; Lista que vai cada elemento associa um nome de classe a seus atributos (incluindo o env)
+(define classes-struct-list (cons 'object (class 'object 'object null null empty-env)) ) ; Lista que vai cada elemento associa um nome de classe a seus atributos (incluindo o env)
 
 (struct object (classname fields-refs))
 
@@ -232,9 +232,11 @@ apply-env :: Env x Var -> Value
  )
 
 (define (get-class name struct-list)
+     (if (empty? struct-list) (void)
      (if (equal? name (caar struct-list)) (cdar struct-list)   ; Procurar na lista de classes o struct dado o nome
-         (get-class name (cdr struct-list))
- ))
+         (get-class name (cdr struct-list)))
+     )
+ )
 
 
 (define get-field-names
@@ -243,28 +245,37 @@ apply-env :: Env x Var -> Value
    )
  )
 
-(define (zip a b)
-  (apply map list (list a b)))
 
-#|
-(define get-field-refs
-  (lambda(class-name)
-    (let ([fields-names (get-field-names class-name)])
-      (map 
-      newref (cons 'undefined field-name)
-     )
-    )
-))
+
+;(map
+;(lambda (field-name)
+;(newref (list ’uninitialized-field field-name)))
+;(class->field-names (lookup-class class-name))))))
+
+;(define get-field-refs
+;  (lambda(class-name)
+;    (let ([fields-names (get-field-names class-name)])
+;      (map 
+;      newref (cons 'undefined field-name)
+;     )
+;    )
+;))
+
+
 
 (define new-object
-  (lambda (class-name)
-    (object class-name (get-field-refs class-name )
- ) ) )
+(lambda (class-name)
+  (object
+   class-name
+   (map
+    (lambda (field-name)
+      (newref (list 'uninitialized-field field-name)))
+    (get-field-names class-name)))))
 
-|#
 
 
-
+; (init-all-classes t)
+; (new-object-2 'c1)
 (define init-class
 (lambda (decl)
   ;(display (cadr decl))
@@ -290,6 +301,8 @@ apply-env :: Env x Var -> Value
             (class c1 object (fields x y)  ((method init () (lit 1 ))))
              (class c2 c1 (fields z w)  ((method init () (lit 5 ))))
             ))
+
+(init-all-classes t)
 
 (define extend-class-env
   (lambda (name env)
