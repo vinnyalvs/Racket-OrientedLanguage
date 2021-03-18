@@ -203,13 +203,21 @@ apply-env :: Env x Var -> Value
 
         [(equal? type 'self ) (apply-env Δ '%self)]
         [(equal? type 'send) (error "operação ainda não implementada") ] ;
-        [(equal? type 'new) (error "operação ainda não implementada") ]
+       ; [(equal? type 'new) (error "operação ainda não implementada") ]
+        [(equal? type 'new) (let* ([args (caddr exp) ]
+
+                                    [obj (new-object (cadr exp))])
+                                    
+                                    (display 'comencando) )]
+
+
         [(equal? type 'super) (error "operação ainda não implementada") ]
         
         [else (error "operação não implementada")])
 
   )
-
+;[mth (find-method obj 'init)]
+;(apply-method mth obj args ))]
 ; ---------------------------- ENV CLASSES -------------------
 (require racket/trace)
 
@@ -223,6 +231,10 @@ apply-env :: Env x Var -> Value
 (define classes-struct-list (cons 'object (class 'object 'object null null empty-env)) ) ; Lista que vai cada elemento associa um nome de classe a seus atributos (incluindo o env)
 
 (struct object (classname fields-refs))
+
+(struct method (vars body super-name field-names))
+
+
 
 (define add-class ; add um struct class a lista classes-struct-list 
   (lambda (name obj_class)
@@ -285,16 +297,14 @@ apply-env :: Env x Var -> Value
   (add-class (cadr decl) ( class (cadr decl) (caddr decl) (cdr (cadddr decl)) (cdar (cadddr (cdr decl))) init-env) ))
   )
 
-(define add-object-class
-(add-class 'object (class 'object 'object 'fields 'methods empty-env))) ;
+;(define add-object-class
+;(add-class 'object (class 'object 'object 'fields 'methods empty-env))) ;
  
  
 (define init-all-classes
   (lambda (classes-decls)
     (map init-class classes-decls))
  )
-
-
 
 
 (define t '(
@@ -316,7 +326,6 @@ apply-env :: Env x Var -> Value
          (get-class-env name (cdr assoc-name-class))
  ))
 
-; (define struct-class-list '()) 
 
 
 (define (apply-class-env env var)
@@ -325,8 +334,8 @@ apply-env :: Env x Var -> Value
 
 (define (value-of-classes-program prog )
   (empty-store)
-  (init-all-classes (cadr prog))
-  ;(value-of (cadr prog init-env))
+  (init-all-classes (cadr prog)) ; ClassDecl
+  ;(value-of (cadr prog init-env)) ; Body Expr
 )
 
 ; Especificação do comportamento de programas
