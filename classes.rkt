@@ -129,17 +129,7 @@ apply-env :: Env x Var -> Value
 
 
 #|
-(define lookup-class
-(lambda (name)
-(((assq name class-env)))
-))
 
-(define add-to-class-env!
-(lambda (class-name class)
-(set! class-env
-(cons
-(list class-name class)
-class-env))))
 
 
 (define initialize-class-env!
@@ -251,8 +241,10 @@ m-decls s-name f-names)))))))))
 
 ; ---------------------------- ENV CLASSES -------------------
 (require racket/trace)
-; (define class-env '()) ;; // (define class-env '(empty-class-env)) 
-(define class-env '()) 
+
+(struct class (classname super fields methods) ) ; Estrutura para representar os objetos de uma classe
+
+(define class-env '()) ; ou // (define class-env '(empty-class-env))
 (define init-env-classes class-env)
 
 
@@ -267,15 +259,50 @@ m-decls s-name f-names)))))))))
      (if (equal? name (caar assoc-name-class)) (cdar assoc-name-class)   ; Procurar na lista de classe o env dado o nome
          (get-class-env name (cdr assoc-name-class))
  ))
+
+(define struct-class-list '()) 
+
+(define add-struct-class
+  (lambda (name obj_class)
+    (set! struct-class-list (append (list (cons name obj_class))
+           struct-class-list) )
+    )
+ )
+
+(define (get-class-struct name struct-list)
+     (if (equal? name (caar struct-list)) (cdar struct-list)   ; Procurar na lista de classe o env dado o nome
+         (get-class-struct name (cdr struct-list))
+ ))
+
  
 (define (apply-class-env env var)
   (env var))
 
 
-; (extend-class-env-2 'name init-env)
+; (extend-class-env 'name init-env)
 ; (get-class-env 'name class-env)
 
-(struct class (classname super fields methods) ) ; Estrutura para representar os objetos de uma classe
+#|
+(define all-classes)
+(lambda (classes)
+  for(classes)
+   init-class(classes[i])
+ )
+|#
+
+(define init-class
+(lambda (class-name super-name fields methods)
+  (define aux (class class-name super-name fields methods))
+  (add-struct-class class-name aux)
+ ))
+
+;(define initialize-class-env!
+;  (lambda (c-decls)
+;    (set! class-env
+;          (list
+;           (list ’object (a-class #f ’() ’()))))
+;    (for-each initialize-class-decl! c-decls)))
+
 #|
 
 
