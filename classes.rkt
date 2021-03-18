@@ -105,6 +105,8 @@ apply-env :: Env x Var -> Value
 
   |[name = var / body]Δ| = (extend-env-rec name var body Δ) 
 |#
+
+
 (define empty-env
   (lambda (var)
     (error "No bind")))
@@ -193,18 +195,13 @@ m-decls s-name f-names)))))))))
 (struct thunk (env exp))
 
 
-
-
-(define (value-of exp Δ)
+  (define (value-of exp Δ)
   (define type (car exp))
 
   (cond [(equal? type 'lit) (cadr exp)]
-        ; call-by-value e call-by-reference
-        ;[(equal? type 'var) (deref (apply-env Δ (cadr exp)))]
-        ; call-by-name
         [(equal? type 'var) (define v (cadr exp))
-                            (if (thunk? v) (value-of (thunk-exp v) (thunk-env v))
-                                (deref (apply-env Δ v)))]
+                            ;(if (thunk? v) (value-of (thunk-exp v) (thunk-env v))
+                                (deref (apply-env Δ (cadr exp)))]
         [(equal? type 'dif) (- (value-of (cadr exp) Δ) (value-of (caddr exp) Δ))]
         [(equal? type 'zero?) (= (value-of (cadr exp) Δ) 0)]
         [(equal? type 'let) (value-of (cadddr exp) (extend-env (cadr exp) (newref (value-of (caddr exp) Δ)) Δ))]
@@ -229,11 +226,11 @@ m-decls s-name f-names)))))))))
                               (setref! (apply-env Δ (cadr exp)) v)
                               v)] ; -- Ok
         
-        [(equal? type 'begin) (foldr (lambda (e acumulador) (value-of e Δ)) (value-of (cadr exp) Δ) (cddr exp))] ; -- OK
+        [(equal? type 'begin) (foldl (lambda (e acumulador) (value-of e Δ)) (value-of (cadr exp) Δ) (cddr exp))] ; -- OK
 
-       ; [(equal? type 'self) (()(apply-env env ’%self)) ]
 
-      ;  [(equal? type 'send) (define v (cadr exp)) (foldr (lambda (e acumulador) (value-of e Δ)) (value-of (cadr exp) Δ) (cddr exp))] ;
+        [(equal? type 'self ) (apply-env Δ '%self)]
+        [(equal? type 'send) (error "operação ainda não implementada") ] ;
 
         [else (error "operação não implementada")])
 
@@ -242,11 +239,53 @@ m-decls s-name f-names)))))))))
 ; ---------------------------- ENV CLASSES -------------------
 (require racket/trace)
 
-(struct class (classname super fields methods) ) ; Estrutura para representar os objetos de uma classe
+(struct class (classname super fields methods env) ) ; Estrutura para representar os objetos de uma classe
 
-(define class-env '()) ; ou // (define class-env '(empty-class-env))
+;(define class-env '()) ; ou // (define class-env '(empty-class-env))
 (define init-env-classes class-env)
 
+(define classes-struct-list '()) ; Lista que vai cada elemento associa um nome de classe a seus atributos (incluindo o env)
+
+(define add-class ; add um struct class a lista classes-struct-list 
+  (lambda (name obj_class)
+    (set! classes-struct-list (append (list (cons name obj_class))
+           classes-struct-list) )
+    )
+ )
+
+(define (get-class name struct-list)
+     (if (equal? name (caar struct-list)) (cdar struct-list)   ; Procurar na lista de classes o struct dado o nome
+         (get-class name (cdr struct-list))
+ ))
+
+
+
+(define init-class
+(lambda (decl)
+  ;(display (cadr decl))
+  ;(display (caddr decl))
+  ;(display (cadddr decl))
+  ;(display  (cadddr (cdr decl)))
+  (add-class (cadr decl) ( class (cadr decl) (caddr decl) (cadddr decl) (cadddr (cdr decl)) init-env) ))
+
+  )
+
+(define add-object-class
+(add-class 'object (class 'object 'object 'fields 'methods empty-env))) ;; chamar no programa
+ 
+ 
+
+(define init-all-classes
+  (lambda (classes-decls)
+    map init-class classes-decls)
+ )
+
+
+
+(define t '(
+            (class c1 object (fields x y)  ((method init () (lit 1 ))))
+             (class c2 c1 (fields z w)  ((method init () (lit 5 ))))
+            ))
 
 (define extend-class-env
   (lambda (name env)
@@ -260,19 +299,9 @@ m-decls s-name f-names)))))))))
          (get-class-env name (cdr assoc-name-class))
  ))
 
-(define struct-class-list '()) 
+; (define struct-class-list '()) 
 
-(define add-struct-class
-  (lambda (name obj_class)
-    (set! struct-class-list (append (list (cons name obj_class))
-           struct-class-list) )
-    )
- )
 
-(define (get-class-struct name struct-list)
-     (if (equal? name (caar struct-list)) (cdar struct-list)   ; Procurar na lista de classe o env dado o nome
-         (get-class-struct name (cdr struct-list))
- ))
 
  
 (define (apply-class-env env var)
@@ -290,11 +319,6 @@ m-decls s-name f-names)))))))))
  )
 |#
 
-(define init-class
-(lambda (class-name super-name fields methods)
-  (define aux (class class-name super-name fields methods))
-  (add-struct-class class-name aux)
- ))
 
 ;(define initialize-class-env!
 ;  (lambda (c-decls)
@@ -320,23 +344,12 @@ porém adicionar sempre um parâmetro a mais referente ao objeto atual
 (for-each init-classes classes))) ; Pegar as declarações de classe e criar objeto vazio
 |#
 
-(define init-all ;; Para cada classe colocar os atributos
-( lambda(classes)
-   (set! class-env 
-(list 'object (class 'nome #f '() '()))))) ; Pegar as declarações de classe e criar objeto vazio
 
-
-(define init-classes
-  (lambda (classes)
-    
-    display(3)
-    )
-  ) ; pegar cada atributo e associar a classe
 
 
 (define (value-of-classes-program class-decls bodyExpr )
   (empty-store)
-  (init-all class-decls)
+  (init-all-classes class-decls)
   ;(value-of bodyExpr init-env-classes)
 )
 (define class-example
@@ -347,7 +360,7 @@ field-names method-decls))
 
 (define a-program '(class-example body))
 
-(value-of-classes-program a-program init-env-classes)
+;(value-of-classes-program a-program init-env-classes)
 
 (trace value-of-classes-program)
 
