@@ -277,7 +277,7 @@ m-decls s-name f-names)))))))))
 
 (define init-all-classes
   (lambda (classes-decls)
-    map init-class classes-decls)
+    (map init-class classes-decls))
  )
 
 
