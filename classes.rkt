@@ -1,58 +1,9 @@
 #lang racket
 
-#| IREF: Uma Linguagem com Referências Implícitas
-
-; Expressed values e Denoted values
-ExpVal = Int + Bool + Proc
-DenVal = Ref(ExpVal)
- 
-; Operações para locations e referências
-  newref :: ExpVal -> Ref
-  deref :: Ref -> ExpVal
-  setref :: Ref x ExpVal -> ???
-
-; Sintaxe
-
-Prog -> (ClassDecl* Expr)
-
-Prog -> (prog Expr)
-Expr -> (lit Val) | (var Var) | (zero? Expr) | (dif Expr Expr)
-     |  (if Expr Expr Expr) | (let Var Expr Expr)
-     | (proc Var Expr) | (call Expr Expr)
-     | (letrec Name Var Expr Expr)
-     | (set Var Expr)
-     | (begin Expr Expr*)
-     |  
-
-; Exemplo
-1)
-let g = let count = 0
-        in proc(dummy)
-            begin
-             set count = -(count, -1));
-             count
-            end
-in let a = (g 11)
-   in let b = (g 11)
-      in -(a,b)
-_____________________________________________________
-(let g (let count (lit 0)
-        (proc dummy (begin (set count (dif (var count) (lit -1)))
-                           (var count))))
- (let a (call (var g) (lit 11))
-  (let b (call (var g) (lit 11))
-   (dif (var a) (var b)))))
+#| CLASSES: Uma Linguagem Orientada a Objetos
 
 
-2)
-let x = newref(newref(0))
-in begin
-    setref(deref(x), 11);
-    deref(deref(x))
-   end
-______________________________________________________
-Não tem equivalente em IREF
-
+; ------------------- Estado IREF --------------------
 
 ; Notação do Estado
 
@@ -87,26 +38,8 @@ Não tem equivalente em IREF
       (vector-set! (cdr σ) addr v)
       (error "invalid location")))
 
-#|
-; Environment
-Env = Var -> Value
 
-empty-env :: Env
-extend-env :: Var x Value x Env -> Env
-apply-env :: Env x Var -> Value
-    
-; Notação
-  Δ => Environment
-  [] => empty-env
-  [var=val]Δ => (extend-env var val Δ)
-  [var1=val1, var2=val2]Δ => abreviação para [var1=val1]([var2=val2]Δ)
-  [var1=val1, var2=val2, ..., varn=valn] => abreviação para [var1=val1,...,varn=valn][]
-  Δ⟦var⟧  => (apply-env Δ var)
-
-  |[name = var / body]Δ| = (extend-env-rec name var body Δ) 
-|#
-
-
+; -------------------- ENV IREF ---------------
 (define empty-env
   (lambda (var)
     (error "No bind")))
@@ -128,7 +61,7 @@ apply-env :: Env x Var -> Value
 (define init-env empty-env)
 
 
-
+; --------------------- PROC IREF ----------------------
 
 #|
 ; Definição dos Valores
@@ -161,7 +94,7 @@ apply-env :: Env x Var -> Value
   (proc val #f))
 
 
-
+; ----------- value-of exp . Base IREF + operacoes: New, Super, Send, Self e Begin
 (struct thunk (env exp))
 
 
@@ -218,31 +151,29 @@ apply-env :: Env x Var -> Value
   )
 ;[mth (find-method obj 'init)]
 ;(apply-method mth obj args ))]
-; ---------------------------- ENV CLASSES -------------------
+
+; ---------------------------- ENV CLASSES ------------------- Estruturas criadas para o trabalho
 (require racket/trace)
 
-(struct class (classname super fields methods env) ) ; Estrutura para representar os objetos de uma classe
+(struct class (classname super fields methods env) ) ; Estrutura para representar as informações de uma CLASSE
+
+ ; Lista que vai cada elemento associa um nome de classe a seus atributos (incluindo o env)
+(define classes-struct-list (cons 'object (class 'object 'object null null empty-env)) ) ;; Inicia lista com classe object
+
+(struct object (classname fields-refs)) ; Estrutura para representar as informações de um OBJETO
+
+(struct method (vars body super-name field-names)) ; Estrutura para representar as informações de um METODO
 
 
-
-;(define class-env '()) ; ou // (define class-env '(empty-class-env))
-(define init-env-classes class-env)
-
-(define classes-struct-list (cons 'object (class 'object 'object null null empty-env)) ) ; Lista que vai cada elemento associa um nome de classe a seus atributos (incluindo o env)
-
-(struct object (classname fields-refs))
-
-(struct method (vars body super-name field-names))
-
-
-
-(define add-class ; add um struct class a lista classes-struct-list 
+ ; add um struct class a lista classes-struct-list 
+(define add-class
   (lambda (name obj_class)
     (set! classes-struct-list (append (list (cons name obj_class))
            classes-struct-list) )
     )
  )
 
+; Recupera um struct class da lista classes-struct-list a partir do nome
 (define (get-class name struct-list)
      (if (empty? struct-list) (void)
      (if (equal? name (caar struct-list)) (cdar struct-list)   ; Procurar na lista de classes o struct dado o nome
@@ -251,6 +182,36 @@ apply-env :: Env x Var -> Value
  )
 
 
+; Para uma classe pega as informações da declaração (decl) e cria um novo struct. Esse struct é add na lista com add-class
+(define init-class
+(lambda (decl)
+  ;(display (cadr decl)) -- class-name
+  ;(display (caddr decl)) -- super-clas-name
+  ;(display (cdr (cadddr decl))) -- fields names
+  ;(display  (cdar (cadddr (cdr decl)))) -- methods namses
+  (add-class (cadr decl) ( class (cadr decl) (caddr decl) (cdr (cadddr decl)) (cdar (cadddr (cdr decl))) init-env) ))
+  )
+
+;Pega todas as declarações de classes, para cada uma chama init-class
+(define init-all-classes
+  (lambda (classes-decls)
+    (map init-class classes-decls))
+ )
+
+
+; Exemplo de código (apenas declarações de classe) que funciona
+(define exemplo '(
+            (class obj1 object (fields a b)  ((method initialize() (lit 1 ))))
+             (class obj2 obj1 (fields c d)  ((method initialize() (lit 5 ))))
+            ))
+
+(init-all-classes exemplo)
+; -- Fim exemplo de código
+
+
+
+; Pega os nomes dos campos de uma classe dado o nome da classe
+
 (define get-field-names
  (lambda(class-name)
   (class-fields (get-class class-name classes-struct-list))
@@ -258,22 +219,7 @@ apply-env :: Env x Var -> Value
  )
 
 
-
-;(map
-;(lambda (field-name)
-;(newref (list ’uninitialized-field field-name)))
-;(class->field-names (lookup-class class-name))))))
-
-;(define get-field-refs
-;  (lambda(class-name)
-;    (let ([fields-names (get-field-names class-name)])
-;      (map 
-;      newref (cons 'undefined field-name)
-;     )
-;    )
-;))
-
-
+; Criar um novo objeto com nome da classe e referências para os campos
 
 (define new-object
 (lambda (class-name)
@@ -285,52 +231,7 @@ apply-env :: Env x Var -> Value
     (get-field-names class-name)))))
 
 
-
-; (init-all-classes t)
-; (new-object-2 'c1)
-(define init-class
-(lambda (decl)
-  ;(display (cadr decl))
-  ;(display (caddr decl))
-  ;(display (cdr (cadddr decl)))
-  ;(display  (cdar (cadddr (cdr decl))))
-  (add-class (cadr decl) ( class (cadr decl) (caddr decl) (cdr (cadddr decl)) (cdar (cadddr (cdr decl))) init-env) ))
-  )
-
-;(define add-object-class
-;(add-class 'object (class 'object 'object 'fields 'methods empty-env))) ;
- 
- 
-(define init-all-classes
-  (lambda (classes-decls)
-    (map init-class classes-decls))
- )
-
-
-(define t '(
-            (class c1 object (fields x y)  ((method init () (lit 1 ))))
-             (class c2 c1 (fields z w)  ((method init () (lit 5 ))))
-            ))
-
-(init-all-classes t)
-
-(define extend-class-env
-  (lambda (name env)
-    (set! class-env (append (list (cons name env))
-           class-env) )
-    )
- )
-
-(define (get-class-env name assoc-name-class)
-     (if (equal? name (caar assoc-name-class)) (cdar assoc-name-class)   ; Procurar na lista de classe o env dado o nome
-         (get-class-env name (cdr assoc-name-class))
- ))
-
-
-
-(define (apply-class-env env var)
-  (env var))
-
+; -- Avalia o programa
 
 (define (value-of-classes-program prog )
   (empty-store)
@@ -338,32 +239,14 @@ apply-env :: Env x Var -> Value
   ;(value-of (cadr prog init-env)) ; Body Expr
 )
 
-; Especificação do comportamento de programas
+; Especificação do comportamento de programas (IREF)
 (define (value-of-program prog)
   (empty-store)
   (value-of (cadr prog) init-env))
 
 
-(define class-example
-'(class-name super-name
-field-names method-decls))
-
-(define new-object-exp '(class-name obj_name))
-
-(define a-program '(class-example body))
-
-;(value-of-classes-program a-program init-env-classes)
-
-(trace value-of-classes-program)
 
 
 
 
 
-
-
-
-;(value-of p1 init-env)
-;(value-of p2 init-env)
-;(value-of p3 init-env)
-;(value-of p4 init-env)
