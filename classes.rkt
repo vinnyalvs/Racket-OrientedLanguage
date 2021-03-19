@@ -155,15 +155,15 @@
 ; ---------------------------- ENV CLASSES ------------------- Estruturas criadas para o trabalho
 (require racket/trace)
 
-(struct class (classname super fields methods env) ) ; Estrutura para representar as informações de uma CLASSE
+(struct class (classname super fields method-env) ) ; Estrutura para representar as informações de uma CLASSE
 
  ; Lista que vai cada elemento associa um nome de classe a seus atributos (incluindo o env)
 (define classes-struct-list '() ) ;; Inicia lista com classe object
 
 (struct object (classname fields-refs)) ; Estrutura para representar as informações de um OBJETO
 
-(struct method (vars body super-name field-names)) ; Estrutura para representar as informações de um METODO
-
+; (struct method (vars body super-name field-names)) ; Estrutura para representar as informações de um METODO
+(struct method (vars-body super-name field-names))
 
  ; add um struct class a lista classes-struct-list 
 (define add-class
@@ -180,14 +180,15 @@
          (get-class name (cdr struct-list)))
      )
  )
+
 ;Remove duplicatas da lista: https://stackoverflow.com/questions/33716736/removing-duplicates-from-a-list-as-well-as-the-elements-themselves-racket-sche
-(define (remove-duplicates l)
-  (cond ((empty? l)
+(define (remove-duplicates list)
+  (cond ((empty? list)
          '())
-        ((member (first l) (rest l))
-         (remove-duplicates (rest l)))
+        ((member (first list) (rest list))
+         (remove-duplicates (rest list)))
         (else
-         (cons (first l) (remove-duplicates (rest l))))))
+         (cons (first list) (remove-duplicates (rest list))))))
 
 
 ; Recebe campos do super e campos da classe e retorna nova lista de campos
@@ -209,33 +210,61 @@
    )
  )
 
+; A partir das declarações dos metodos cria o env do metodo
+(define create-method
+  (lambda (method-decl super-name fields)
+    (let ([method-name  (car method-decl)])
+      (cons method-name (method (cddr method-decl) super-name fields))
+      ) )
+ )
 
+; Recebe todas as declarações de metodos e 'recursivamente' anda em cada recursão 
+(define create-methods-env
+  (lambda(methods-decls super-name fields method-env)
+    (if (empty? methods-decls) method-env
+    (aux-create-methods-env methods-decls super-name fields method-env))
+    ))
+
+;Recebe uma declaração de método e chama a função create-methods-env, para cada env criado coloca numa lista 
+
+(define aux-create-methods-env
+ (lambda(method-decl super-name fields method-env)
+   (set! method-env (append (list (create-method (cdar method-decl) super-name fields) )
+           method-env) )
+   (create-methods-env (cdr method-decl) super-name fields method-env)
+   )
+  )
+
+             
 ; Para uma classe pega as informações da declaração (decl) e cria um novo struct. Esse struct é add na lista com add-class
 (define init-class
 (lambda (decl)
   ;(display (cadr decl)) -- class-name
  ; (display (caddr decl)) ;-- super-clas-name
   ;(display (cdr (cadddr decl))) -- fields names
-  ;(display  (cdar (cadddr (cdr decl)))) -- methods namses
-  (let ([correct-fields (append-fields (get-field-names (caddr decl)) (cdr (cadddr decl)))]) ; Fields do Super e novos fields da classe
-      (add-class (cadr decl) ( class (cadr decl) (caddr decl) correct-fields (cdar (cadddr (cdr decl))) init-env) ))
-  )
+ ; (display  (cadddr (cdr decl))) ;-- methods namses
+  
+  (let ([correct-fields (append-fields (get-field-names (caddr decl)) (cdr (cadddr decl)))] ; Fields do Super e novos fields da classe
+        [method-env (append (class-method-env (get-class (caddr decl) classes-struct-list)) (create-methods-env (cadddr (cdr decl)) (caddr decl) (cdr (cadddr decl)) '())  ) ])
+    (add-class (cadr decl) ( class (cadr decl) (caddr decl) correct-fields method-env )) ))
   )
 
 ;Pega todas as declarações de classes, para cada uma chama init-class
 (define init-all-classes
   (lambda (classes-decls)
-    (add-class 'object (class 'object 'object null null empty-env))
+    (add-class 'object (class 'object 'object null null))
     (map init-class classes-decls))
  )
 
 
 ; Exemplo de código (apenas declarações de classe) que funciona
 (define exemplo '(
-            (class classe1 object (fields a b)  ((method initialize() (lit 1 ))))
-             (class classe2 classe1 (fields c d)  ((method initialize() (lit 5 ))))
+            (class classe1 object (fields a b)  (( method initialize()(v1 lit 1)) (method teste() (lit 2 )) ))
+             (class classe2 classe1 (fields c d)  ((method initialize(5) (lit 5 ))))
              (class classe3 classe2 (fields d e f g)  ((method initialize() (lit 5 ))))
             ))
+
+(define metodos '(( method initialize()(v1 lit 1)) (method teste() (lit 2 )) ))
 
 (init-all-classes exemplo)
 ; -- Fim exemplo de código
