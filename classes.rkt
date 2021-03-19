@@ -235,6 +235,18 @@
    )
   )
 
+(define find-method
+  (lambda (class-name method-name)
+    (let ((m-env (class-method-env (get-class classes-struct-list))))
+      (let ((maybe-pair (assq method-name m-env)))
+        (if (pair? maybe-pair) (cadr maybe-pair)
+            (report-method-not-found name)
+
+         )
+        )
+      )
+    )
+ )
              
 ; Para uma classe pega as informações da declaração (decl) e cria um novo struct. Esse struct é add na lista com add-class
 (define init-class
