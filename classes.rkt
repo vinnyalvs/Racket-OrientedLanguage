@@ -158,7 +158,7 @@
 (struct class (classname super fields methods env) ) ; Estrutura para representar as informações de uma CLASSE
 
  ; Lista que vai cada elemento associa um nome de classe a seus atributos (incluindo o env)
-(define classes-struct-list (cons 'object (class 'object 'object null null empty-env)) ) ;; Inicia lista com classe object
+(define classes-struct-list '() ) ;; Inicia lista com classe object
 
 (struct object (classname fields-refs)) ; Estrutura para representar as informações de um OBJETO
 
@@ -180,34 +180,25 @@
          (get-class name (cdr struct-list)))
      )
  )
+;Remove duplicatas da lista: https://stackoverflow.com/questions/33716736/removing-duplicates-from-a-list-as-well-as-the-elements-themselves-racket-sche
+(define (remove-duplicates l)
+  (cond ((empty? l)
+         '())
+        ((member (first l) (rest l))
+         (remove-duplicates (rest l)))
+        (else
+         (cons (first l) (remove-duplicates (rest l))))))
 
 
-; Para uma classe pega as informações da declaração (decl) e cria um novo struct. Esse struct é add na lista com add-class
-(define init-class
-(lambda (decl)
-  ;(display (cadr decl)) -- class-name
-  ;(display (caddr decl)) -- super-clas-name
-  ;(display (cdr (cadddr decl))) -- fields names
-  ;(display  (cdar (cadddr (cdr decl)))) -- methods namses
-  (add-class (cadr decl) ( class (cadr decl) (caddr decl) (cdr (cadddr decl)) (cdar (cadddr (cdr decl))) init-env) ))
-  )
-
-;Pega todas as declarações de classes, para cada uma chama init-class
-(define init-all-classes
-  (lambda (classes-decls)
-    (map init-class classes-decls))
- )
-
-
-; Exemplo de código (apenas declarações de classe) que funciona
-(define exemplo '(
-            (class obj1 object (fields a b)  ((method initialize() (lit 1 ))))
-             (class obj2 obj1 (fields c d)  ((method initialize() (lit 5 ))))
-            ))
-
-(init-all-classes exemplo)
-; -- Fim exemplo de código
-
+; Recebe campos do super e campos da classe e retorna nova lista de campos
+(define append-fields
+  (lambda (fields-super fields-child)
+    (cond
+      ((null? fields-super) fields-child)
+      (else
+       (remove-duplicates (append fields-super fields-child)))
+   )
+  ))
 
 
 ; Pega os nomes dos campos de uma classe dado o nome da classe
@@ -217,6 +208,38 @@
   (class-fields (get-class class-name classes-struct-list))
    )
  )
+
+
+; Para uma classe pega as informações da declaração (decl) e cria um novo struct. Esse struct é add na lista com add-class
+(define init-class
+(lambda (decl)
+  ;(display (cadr decl)) -- class-name
+ ; (display (caddr decl)) ;-- super-clas-name
+  ;(display (cdr (cadddr decl))) -- fields names
+  ;(display  (cdar (cadddr (cdr decl)))) -- methods namses
+  (let ([correct-fields (append-fields (get-field-names (caddr decl)) (cdr (cadddr decl)))]) ; Fields do Super e novos fields da classe
+      (add-class (cadr decl) ( class (cadr decl) (caddr decl) correct-fields (cdar (cadddr (cdr decl))) init-env) ))
+  )
+  )
+
+;Pega todas as declarações de classes, para cada uma chama init-class
+(define init-all-classes
+  (lambda (classes-decls)
+    (add-class 'object (class 'object 'object null null empty-env))
+    (map init-class classes-decls))
+ )
+
+
+; Exemplo de código (apenas declarações de classe) que funciona
+(define exemplo '(
+            (class classe1 object (fields a b)  ((method initialize() (lit 1 ))))
+             (class classe2 classe1 (fields c d)  ((method initialize() (lit 5 ))))
+             (class classe3 classe2 (fields d e f g)  ((method initialize() (lit 5 ))))
+            ))
+
+(init-all-classes exemplo)
+; -- Fim exemplo de código
+
 
 
 ; Criar um novo objeto com nome da classe e referências para os campos
