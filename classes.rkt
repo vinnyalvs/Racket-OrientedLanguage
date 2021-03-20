@@ -2,6 +2,12 @@
 
 #| CLASSES: Uma Linguagem Orientada a Objetos
 
+Aleksander Yacovenco		201465002C
+Edson Lopes da Silva Junior     201635023
+Thiago Goldoni Thomé		201235063
+Vinicius Alberto Alves da Silva	201665558C
+
+
 
 ; ------------------- Estado IREF --------------------
 
@@ -116,34 +122,27 @@
         ; call-by-reference
         #;[(equal? type 'call) (if (equal? (car (caddr exp)) 'var)
                                  (apply-proc-ref (value-of (cadr exp) Δ) (apply-env Δ (cadr (caddr exp))))
-                                 (apply-proc (value-of (cadr exp) Δ) (value-of (caddr exp) Δ)))] ; -- 
+                                 (apply-proc (value-of (cadr exp) Δ) (value-of (caddr exp) Δ)))] 
         ;call-by-name
         [(equal? type 'call) (if (equal? (car (caddr exp)) 'var)
                                  (apply-proc-ref (value-of (cadr exp) Δ) (apply-env Δ (cadr (caddr exp))))
-                                 (apply-proc (value-of (cadr exp) Δ) (thunk Δ (caddr exp))))] ; -- vai sair
+                                 (apply-proc (value-of (cadr exp) Δ) (thunk Δ (caddr exp))))] 
 
        
         
-        [(equal? type 'letrec) (value-of (car (cddddr exp)) (extend-env-rec (cadr exp) (caddr exp) (cadddr exp) Δ))] ; -- Ok
+        [(equal? type 'letrec) (value-of (car (cddddr exp)) (extend-env-rec (cadr exp) (caddr exp) (cadddr exp) Δ))] 
         
 
         [(equal? type 'set) (let ([v (value-of (caddr exp) Δ)])
                               (setref! (apply-env Δ (cadr exp)) v)
                               v)] ; -- Ok
         
-        [(equal? type 'begin) (foldr (lambda (e acumulador) (value-of e Δ)) (value-of (cadr exp) Δ) (cddr exp))] ; -- OK
+        [(equal? type 'begin) (foldr (lambda (e acumulador) (value-of e Δ)) (value-of (cadr exp) Δ) (cddr exp))] 
 
 
-        [(equal? type 'self ) (apply-env Δ '%self)]
-        [(equal? type 'send) (error "operação ainda não implementada") ] ;
-       ; [(equal? type 'new) (error "operação ainda não implementada") ]
-        [(equal? type 'new) (let* ([args (caddr exp) ]
-
-                                    [obj (new-object (cadr exp))])
-                                    
-                                    (display 'comencando) )]
-
-
+        [(equal? type 'self ) (error "operação ainda não implementada")]
+        [(equal? type 'send) (error "operação ainda não implementada") ] 
+        [(equal? type 'new) (error "operação ainda não implementada") ]
         [(equal? type 'super) (error "operação ainda não implementada") ]
         
         [else (error "operação não implementada")])
@@ -237,11 +236,11 @@
 
 (define find-method
   (lambda (class-name method-name)
-    (let ((m-env (class-method-env (get-class classes-struct-list))))
-      (let ((maybe-pair (assq method-name m-env)))
-        (if (pair? maybe-pair) (cadr maybe-pair)
-            (report-method-not-found name)
-
+    (let ((method-env (class-method-env (get-class class-name classes-struct-list))))
+      (let ((maybe-pair (assq method-name method-env)))
+        (if (pair? maybe-pair) maybe-pair
+           ; (report-method-not-found name)
+            (display 'metodo_nao_encontrado)
          )
         )
       )
